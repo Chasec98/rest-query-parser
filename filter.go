@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Filter represents a filter defined in the query part of URL
@@ -46,6 +47,8 @@ func detectType(name string, validations Validations) string {
 					return "int"
 				case "bool", "b":
 					return "bool"
+				case "time", "t":
+					return "time"
 				default:
 					return "string"
 				}
@@ -115,7 +118,7 @@ func (f *Filter) validate(validate ValidationFunc) error {
 				return err
 			}
 		}
-	case int, bool, string:
+	case int, bool, string, time.Time:
 		err := validate(f.Value)
 		if err != nil {
 			return err
@@ -174,6 +177,11 @@ func (f *Filter) parseValue(valueType string, value string, delimiter string) er
 		}
 	case "bool":
 		err := f.setBool(list)
+		if err != nil {
+			return err
+		}
+	case "time":
+		err := f.setTime(list)
 		if err != nil {
 			return err
 		}
@@ -274,6 +282,26 @@ func (f *Filter) setInt(list []string) error {
 			intSlice[i] = v
 		}
 		f.Value = intSlice
+	}
+	return nil
+}
+
+func (f *Filter) setTime(list []string) error {
+	if len(list) == 1 {
+		if f.Method != EQ &&
+			f.Method != GT &&
+			f.Method != LT &&
+			f.Method != GTE &&
+			f.Method != LTE {
+			return ErrMethodNotAllowed
+		}
+		t, err := time.Parse(time.RFC3339Nano, list[0])
+		if err != nil {
+			return ErrBadFormat
+		}
+		f.Value = t
+	} else {
+		return ErrMethodNotAllowed
 	}
 	return nil
 }
